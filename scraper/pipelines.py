@@ -173,6 +173,9 @@ class CleanMetadataPipeline(SpiderPipeline):
 class UploadPipeline(SpiderPipeline):
     """Uploads documents to DocumentCloud & stores event data."""
 
+    # Number of uploads between two saves of the event data on DocumentCloud
+    EVENT_DATA_SAVE_INTERVAL = 25
+
     def count_documents(self):
         """Counts the number of uploaded documents (one per file version) in event_data"""
         return sum(
@@ -200,6 +203,7 @@ class UploadPipeline(SpiderPipeline):
 
         self.uploaded = 0
         self.upload_errors = 0
+        self.unsaved_uploads = 0
 
         # Loaded before the spider parses liste.csv, which skips uploaded documents.
         # No error handling: running without event data would upload duplicates.
@@ -218,6 +222,27 @@ class UploadPipeline(SpiderPipeline):
             f"Loaded event data ({len(spider.event_data)} declarants, "
             f"{self.count_documents()} documents)"
         )
+
+    def store_event_data(self):
+        """Stores the event data on DocumentCloud (scheduled events only)."""
+
+        spider = self.spider
+
+        if not spider.event_id:
+            return
+
+        try:
+            spider.store_event_data(spider.event_data)
+        except Exception as e:
+            # Kept in memory: stored with the next batch or when the spider closes
+            spider.logger.warning(f"Error storing event data: {e!r}")
+        else:
+            self.unsaved_uploads = 0
+            spider.logger.info(
+                f"Stored event data ({len(spider.event_data)} declarants, "
+                f"{self.count_documents()} documents, "
+                f"{len(json.dumps(spider.event_data)) / 1000:.1f} KB)"
+            )
 
     def process_item(self, item):
         spider = self.spider
@@ -263,14 +288,12 @@ class UploadPipeline(SpiderPipeline):
         entry["versions"].append([raw.get("last_modified"), raw.get("content_length")])
         spider.mark_checked(entry)
 
-        # Stored after each upload, so that a run killed by the GitHub Actions time
-        # limit or an error does not update the same documents again
-        if spider.event_id:
-            try:
-                spider.store_event_data(spider.event_data)
-            except Exception as e:
-                # Kept in memory: stored with the next upload or when the spider closes
-                spider.logger.warning(f"Error storing event data: {e!r}")
+        # Stored by batches of uploads, to keep the requests to DocumentCloud few.
+        # A run killed by the GitHub Actions time limit or an error uploads at most
+        # EVENT_DATA_SAVE_INTERVAL - 1 documents again on the next run
+        self.unsaved_uploads += 1
+        if self.unsaved_uploads >= self.EVENT_DATA_SAVE_INTERVAL:
+            self.store_event_data()
 
         return item
 
@@ -286,12 +309,9 @@ class UploadPipeline(SpiderPipeline):
             f"Uploaded {self.uploaded} documents ({self.upload_errors} upload errors)"
         )
 
-        if spider.event_id:
-            spider.store_event_data(spider.event_data)
-            spider.logger.info(
-                f"Stored event data ({len(spider.event_data)} declarants, "
-                f"{self.count_documents()} documents)"
-            )
+        # Always stored: the spider also updates the "checked" dates of the files
+        # checked again (mark_checked), even when nothing is uploaded
+        self.store_event_data()
 
         if spider.run_id:
             if spider.upload_event_data:

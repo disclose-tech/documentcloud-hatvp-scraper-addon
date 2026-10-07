@@ -119,7 +119,6 @@ class CleanMetadataPipeline(SpiderPipeline):
         )
         item["file_content_length"] = raw.get("content_length") or None
 
-
         filed = (
             "déposée le "
             + datetime.date.fromisoformat(raw["date_depot"]).strftime("%d/%m/%Y")
@@ -251,11 +250,6 @@ class UploadPipeline(SpiderPipeline):
         data = {field: item[field] for field in DC_METADATA_FIELDS if item.get(field)}
         data["event_data_key"] = self.event_data_key(item)
         data["source_scraper"] = "HATVP Scraper"
-        
-        # Stamped at upload time, so that a metadata updater treats this document as already updated
-        data["last_metadata_update"] = datetime.datetime.now(
-            datetime.timezone.utc
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         if spider.dry_run:
             return item

@@ -4,34 +4,35 @@ from scrapy.item import Field, Item
 
 
 class DocumentItem(Item):
-    source_file_url = Field()  # nom_fichier, as an absolute url
+    source_file_url = Field()  # nom_fichier (absolute url)
 
     # DocumentCloud fields
     title = Field()
-    description = Field()  # folder label on the front-end: one folder per declarant
+    description = Field()
 
     # Declarant (same for all documents of a person)
-    declarant_id = Field()  # url_dossier, without /pages_nominatives/
+    declarant_id = Field()
     source_page_url = Field()  # url_dossier, as an absolute url
     declarant_civility = Field()  # civilite
     declarant_first_name = Field()  # prenom
     declarant_last_name = Field()  # nom
     declarant_institution_member_id = Field()  # id_origine
 
-    # Mandate the document was filed for
-    mandate_type = Field()  # type_mandat, expanded
+    # Mandate
+    mandate_type = Field()  # type_mandat
     mandate_title = Field()  # qualite
     mandate_department_code = Field()  # departement
 
     # Document
-    document_type = Field()  # type_document, expanded
-    # Dates in the front-end's format ("YYYY-MM-DD HH:MM:SS UTC")
+    document_type = Field()  # type_document
+
+    # Dates ("YYYY-MM-DD HH:MM:SS UTC")
     official_publication_date = Field()  # date_publication
-    file_last_modified = Field()  # file's Last-Modified header: date of this version
+    file_last_modified = Field()  # Last-Modified header
     filing_date = Field()  # date_depot
-    file_content_length = Field()  # file's Content-Length header, in bytes
+    file_content_length = Field()  # Content-Length header
     filename = Field()  # nom_fichier
-    open_data_url = Field()  # open_data, as an absolute url
+    open_data_url = Field()  # open_data
 
     # liste.csv row, as is
     raw_metadata = Field()

@@ -1,5 +1,3 @@
-# # Item Pipelines
-
 import datetime
 import json
 import logging
@@ -104,7 +102,7 @@ class CleanMetadataPipeline(SpiderPipeline):
             HATVPSpider.FILES_BASE_URL + raw["open_data"] if raw["open_data"] else None
         )
 
-        # Both dates in the front-end's datetime format
+        # Dates
         item["official_publication_date"] = (
             f"{raw['date_publication']} 00:00:00 UTC"
             if raw["date_publication"]
@@ -138,9 +136,10 @@ class CleanMetadataPipeline(SpiderPipeline):
         if not self.unknown_codes:
             return
 
-        run_name = getattr(self.spider, "run_name", "local run")
+        spider = self.spider
         subject = (
-            f"HATVP Scraper - Unknown codes found, scraper update needed [{run_name}]"
+            "HATVP Scraper - Unknown codes found, scraper update needed "
+            f"[{spider.run_name}]"
         )
 
         lines = [
@@ -161,12 +160,10 @@ class CleanMetadataPipeline(SpiderPipeline):
             ]
         )
 
-        # send_mail is passed by main.py (add-on runs only)
-        send_mail = getattr(self.spider, "send_mail", None)
-        if send_mail and not getattr(self.spider, "dry_run", False):
-            send_mail(subject, content)
+        if spider.dry_run:
+            spider.logger.warning(f"{subject}\n\n{content}")
         else:
-            self.spider.logger.warning(f"{subject}\n\n{content}")
+            spider.send_mail(subject, content)
 
 
 class UploadPipeline(SpiderPipeline):
@@ -329,22 +326,21 @@ class UploadPipeline(SpiderPipeline):
 class MailPipeline(SpiderPipeline):
     """Sends a report after every run."""
 
-    # Documents listed in the mail: the first run uploads thousands of documents
     MAX_LISTED_DOCUMENTS = 100
 
     def open_spider(self):
         self.items = []
 
     def process_item(self, item):
-        # Uploaded documents (all documents in a dry run)
+
         self.items.append(item)
         return item
 
     def close_spider(self):
         spider = self.spider
         stats = spider.crawler.stats
-        dry_run = getattr(spider, "dry_run", False)
-        run_name = getattr(spider, "run_name", "local run")
+        dry_run = spider.dry_run
+        run_name = spider.run_name
 
         years = HATVPSpider.years_label(spider.target_years)
 
@@ -381,9 +377,7 @@ class MailPipeline(SpiderPipeline):
 
         content = "\n\n".join(sections)
 
-        # send_mail is passed by main.py (add-on runs only)
-        send_mail = getattr(spider, "send_mail", None)
-        if send_mail and not dry_run:
-            send_mail(subject, content)
-        else:
+        if dry_run:
             spider.logger.warning(f"{subject}\n\n{content}")
+        else:
+            spider.send_mail(subject, content)

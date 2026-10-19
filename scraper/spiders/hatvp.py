@@ -44,6 +44,7 @@ class HATVPSpider(scrapy.Spider):
     dry_run = True
     run_id = None
     event_id = None
+    run_name = "local run"
     upload_event_data = False
 
     event_data: dict  # set by UploadPipeline.open_spider

@@ -1,4 +1,4 @@
-"""Expansions of the codes used in liste.csv.
+"""Codes used in liste.csv.
 
 Source: Notice des données
 https://www.hatvp.fr/wordpress/wp-content/uploads/2017/07/notice-open-data.pdf
